@@ -103,7 +103,7 @@ class RESTConnector():
         return chunks
 
     #using a subset of the total Features (chunks) will return a list of features from given URL with requested attributes
-    def getFeatures(self,URL, chunks, tokenNo, fields):
+    def getFeatures(self,URL, chunks, fields, queryText):
 
         #initialize a master list, we will append each querie's features to this
         featureList = []
@@ -120,7 +120,7 @@ class RESTConnector():
            
             # data to be sent to api - constrained by start and end OID for chunk
             PARAMS = {'f':'json', 
-                    'where':'OBJECTID>=' +str(chunkStart)+ " AND OBJECTID <=" + str(chunkEnd),
+                    'where':'OBJECTID>=' +str(chunkStart)+ " AND OBJECTID <=" + str(chunkEnd) + " AND " + queryText,
                     'outSr' : '4326',
                     'outFields':fields,
                     'returnGeometry' : 'false',
@@ -142,6 +142,37 @@ class RESTConnector():
         print(str(len(featureList)) + " features pulled from REST Service")
 
         return featureList
+
+    #sometimes there are no ObjectIDs or geometry, its just table data
+    def getTableData(self, URL, fields, queryText):
+
+        #initialize a master list, we will append each querie's features to this
+        featureList = []
+        
+        # data to be sent to api - constrained by start and end OID for chunk
+        PARAMS = {'f':'json', 
+                'where': queryText,           
+                'outFields':fields,
+                'returnGeometry' : 'false',
+                'token' : self.tokenNo
+                } 
+
+        #make the request
+        r = requests.get(url = URL, headers = self.HEADERS, params = PARAMS )
+    
+        #get the data back and convert the JSON response into a dictionary
+        data = r.json() #make sure we do the parantheses or its acts a little weird
+        features = data['features']
+
+        #loop through all the results in this chunk and append to master list
+        for feature in features:
+            attributes = feature['attributes']
+            featureList.append(attributes)
+         
+        print(str(len(featureList)) + " features pulled from ROK")
+
+        return featureList
+
 
     #returns the feature Geometry along with the raw data results given a Feature Layer URL
     def getFeaturesWithGeometry(self,URL, chunks, tokenNo, fields, queryText):
@@ -191,7 +222,7 @@ class RESTConnector():
         return featureList
 
     #return a geoJSON results from Feature Layer URL with requested attributes
-    def getFeaturesAsGeoJSON(self,URL, chunks, tokenNo, fields, queryText):
+    def getFeaturesAsGeoJSON(self,URL, chunks, fields, queryText):
 
         #initialize the starter file, just set to None for now
         geoJSON = None
