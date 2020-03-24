@@ -1,5 +1,5 @@
 ########################################
-#GIS Tools and all the REST (GTATR) v1.0
+#GIS Tools and all the REST (GTATR) v1.2
 ########################################
 
 import requests #REST requests
@@ -132,7 +132,11 @@ class RESTConnector():
     
             #get the data back and convert the JSON response into a dictionary
             data = r.json() #make sure we do the parantheses or its acts a little weird
-            features = data['features']
+            try:
+                features = data['features']
+            except:
+                print("URL Requested: " + str(URL))
+                print(data)
 
             #loop through all the results in this chunk and append to master list
             for feature in features:
@@ -173,9 +177,8 @@ class RESTConnector():
 
         return featureList
 
-
     #returns the feature Geometry along with the raw data results given a Feature Layer URL
-    def getFeaturesWithGeometry(self,URL, chunks, tokenNo, fields, queryText):
+    def getFeaturesWithGeometry(self,URL, chunks, fields, queryText):
 
         #initialize a master list, we will append each querie's features to this
         featureList = []
@@ -302,19 +305,24 @@ class RESTConnector():
             print("JSON Response Error " + str(r) + " - - " + str(r.text))
 
     #This will do a spatial query on the REST service using ESRI geometry and relationship (e.g. inside a polygon)
-    def getFeaturesFromServiceByGeometry(self,URL, queryText, geometryToUse, queryType, fields):
+    def getFeaturesFromServiceByGeometry(self,URL, queryText, geometryToUse, geometryType, spatialQueryType, fields):
        
         #initialize a master list, we will append each querie's features to this
         featureList = []
 
+        #for geometry type, see http://resources.esri.com/help/9.3/arcgisengine/ArcObjects/esriGeometry/esriGeometryType.htm
+        #geometry types can be esriGeometryPoint,esriGeometryLine,esriGeometryPolygon,esriGeometryPolyline
+
+
+        #esriSpatialRelIntersects | esriSpatialRelContains | esriSpatialRelCrosses | esriSpatialRelEnvelopeIntersects | esriSpatialRelIndexIntersects | esriSpatialRelOverlaps | esriSpatialRelTouches | esriSpatialRelWithin
 
         # data to be sent to api - "where 1=1" pulls all features, we want objectIDs only
         PARAMS = {'f':'json', 
-                'where':'1=1',
-                'geometryType':'esriGeometryPolygon',
+                'where': queryText, #queryText,
+                'geometryType': geometryType, #geometryType,
                 'inSR': '4326',
                 'geometry' : geometryToUse,            
-                'spatialRel' : queryType, 
+                'spatialRel' : spatialQueryType, #queryType
                 'outSr' : '4326',
                 'outFields':fields,
                 'returnGeometry' : 'false',
@@ -326,8 +334,11 @@ class RESTConnector():
         r = requests.get(url = URL, headers = self.HEADERS, params = PARAMS )
         data = r.json() #make sure we do the parantheses or its acts a little weird   
         print(r.json())
-        features = data['features']
-
+        try:
+            features = data['features']
+        except:
+            features = []
+        #    print("Error - no features " + str(r) + " - - " + str(r.text))
     
 
         #loop through all the results in this query and append to master list
