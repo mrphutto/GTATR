@@ -1,0 +1,5 @@
+OutName,MapServerLink
+ParkingAreas,https://gisdata.seattle.gov/server/rest/services/SDOT/SDOT_ParkingData/MapServer/5
+PublicGarages,https://gisdata.seattle.gov/server/rest/services/SDOT/SDOT_ParkingData/MapServer/0
+PayStations,https://gisdata.seattle.gov/server/rest/services/SDOT/SDOT_ParkingData/MapServer/2
+ParkingRestrictions,https://gisdata.seattle.gov/server/rest/services/SDOT/SDOT_ParkingData/MapServer/3

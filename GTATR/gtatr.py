@@ -1,5 +1,5 @@
 ########################################
-#GIS Tools and all the REST (GTATR) v1.2
+#GIS Tools and all the REST (GTATR) v1.3
 ########################################
 
 import requests #REST requests
@@ -206,10 +206,13 @@ class RESTConnector():
             #make the request
             r = requests.get(url = URL, headers = self.HEADERS, params = PARAMS )
     
-            #get the data back and convert the JSON response into a dictionary
-            data = r.json() #make sure we do the parantheses or its acts a little weird
-        #    print(r.json())
-   
+            try:
+                data = r.json() #make sure we do the parantheses or its acts a little weird
+            except Exception as ex:
+                print("Error Reading JSON Data -- " + str(ex) + "-- " +  str(r.status_code) + "--" + str(r.reason) + "--" + str(r.content) + "--" + r.text)
+                print("URL " + str(URL) + " PARAMs " + str(PARAMS))
+                data = None
+
 
             features = data['features']
                 #loop through all the results in this chunk and append to master list
@@ -253,7 +256,12 @@ class RESTConnector():
             r = requests.get(url = URL, headers = self.HEADERS, params = PARAMS )
     
             #get the data back and convert the JSON response into a dictionary
-            data = r.json() #make sure we do the parantheses or its acts a little weird
+            try:
+                data = r.json() #make sure we do the parantheses or its acts a little weird
+            except Exception as ex:
+                print("Error Reading JSON Data -- " + str(ex) + "-- " +  str(r.status_code) + "--" + str(r.reason) + "--" + str(r.content) + "--" + r.text)
+                print("URL " + str(URL) + " PARAMs " + str(PARAMS))
+                data = None
        
             #check if this is the first chunk or subsequent part
             if geoJSON is None:   
@@ -349,3 +357,88 @@ class RESTConnector():
         print(str(len(featureList)) + " features pulled from REST Service")
 
         return featureList
+
+    #This will take a list of returned features with geometry and try to convert to a different format
+    def convertESRIGeometry(self, featureList):
+
+        #default the geometrytype to something that will catch attention if an error
+        geometryType = "unk"
+
+        
+        #get the first feature in the list as an example
+        try:
+            firstFeature = featureList[0]
+            geo = firstFeature["geometry"]
+        except:
+            print("no geometry found, unable to convert")
+            return None
+
+        #check the geometry type first, try to guess point/line/poly
+        try:
+            x = geo["x"]
+            geometryType = "Point"        
+        
+        except:
+            print("Error getting X - probably not a point")
+
+            #now lets check if a line
+            try:              
+                paths = geo["paths"][0]      
+                geometryType = "LineString" #paths has an extra list
+
+            except:
+                print("Error getting paths - not a line either")
+
+                #last shot - see if its a polygon
+                try:
+                    rings = geo["rings"]     
+                    geometryType = "Polygon" #paths has an extra list
+
+                except:
+                    print("Error getting rings - not a line either")
+
+        #set up the base structure for a geoJSON file
+        geoJSONFile = {"type" : "FeatureCollection",
+                       "features": []}
+
+        #go through all the ESRI feature and add them to the geoJSON
+        for feature in featureList:
+
+            #set the geometry type based on the logic from above
+            geometryInGeoJSON = {"type" : geometryType}
+
+            if geometryType == "Point":
+                #encode the lat long from ESRI JSON to geoJSON
+                geometryInGeoJSON["coordinates"] = [feature["geometry"]["x"], feature["geometry"]["y"]]
+
+            if geometryType == "LineString":
+             #   features['geometry']['paths'] #returns a list
+
+                try:
+                    geometryInGeoJSON["coordinates"] = feature["geometry"]["paths"][0]
+                except: # if it fails, but some dummy coordinates in
+                    geometryInGeoJSON["coordinates"] = [[102.0, 0.0], [103.0, 1.0]]
+                    print("Null geometry encountered")
+
+            if geometryType == "Polygon":           
+
+                try:
+                    geometryInGeoJSON["coordinates"] = feature["geometry"]["rings"]
+                except: #if it fails, but some dummy coordinates in
+                    geometryInGeoJSON["coordinates"] = [[100.0, 0.0], [101.0, 0.0], [101.0, 1.0],[100.0, 1.0], [100.0, 0.0]]
+                    print("Null geometry encountered")
+   
+            #the attribute data is really just our feature data, so set it as a varible
+            propertiesInGeoJSON = feature
+            #remove the ESRI geometry, no longer needed
+            del propertiesInGeoJSON["geometry"]
+
+            #finalize the geoJSON format
+            featureInGeoJSON = {"type" : "Feature", 
+                                "geometry" : geometryInGeoJSON, 
+                                "properties" :propertiesInGeoJSON}
+
+            #add this feature to the total dictionary that will be used to make the file.
+            geoJSONFile["features"].append(featureInGeoJSON)
+
+        return geoJSONFile
