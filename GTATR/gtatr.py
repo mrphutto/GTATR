@@ -1,5 +1,5 @@
 ########################################
-#GIS Tools and all the REST (GTATR) v1.3
+#GIS Tools and all the REST (GTATR) v1.4
 ########################################
 
 import requests #REST requests
@@ -40,24 +40,42 @@ class RESTConnector():
     def getRESTToken(self, username, password, tokenURL):
 
         #First step is to authenticate with REST Service and get a token for future calls
-   
-        # defining the api-endpoint 
-        #tokenURL = "https://maps.foresitegroup.net/arcgis/tokens/"
 
-        # data to be sent to api 
-        PARAMS = {'username':username, 
-                'password':password,
-                'client' : 'requestip', #this is critical for authentication, other ways dont work
-                'referer': self.baseURL + "/" + "rest",
-                'format' : 'JSON',
-                'expiration': 60,} 
+        #first check if token is a arcgis style or portal style
+        tokenStyle = "arcgis" #tokenURL = "https://maps.foresitegroup.net/arcgis/tokens/"
+
+        #this logic could be improved
+        if tokenURL == "https://maps.foresitegroup.net/portal/sharing/rest/generateToken":
+            tokenStyle = "Portal"
+
+        if tokenStyle == "Portal":
+             
+            PARAMS = {'username':username, 
+                    'password':password,
+                    'client' : 'referer', #this is critical for authentication, other ways dont work
+                    'referer': self.baseURL + "/" + "rest",
+                    'f' : 'JSON',
+                    'expiration': 60,} 
+        else:
+            # data to be sent to api 
+            PARAMS = {'username':username, 
+                    'password':password,
+                    'client' : 'requestip', #this is critical for authentication, other ways dont work
+                    'referer': self.baseURL + "/" + "rest",
+                    'format' : 'JSON',
+                    'expiration': 60,} 
  
         # sending post request and saving response as response object 
         r = requests.post(url = tokenURL, data = PARAMS) 
 
-
-        # extracting response text  
-        tokenNo = r.text 
+        #portal returns the token as a dictionary, so we need to extract the string
+        if tokenStyle == "Portal":
+            # extracting response text  
+            tokenNo = r.text.split(':"',1)[1].rsplit('","ex',1)[0]
+        else:
+            # extracting response text  
+            tokenNo = r.text 
+        
         print("The token is:%s"%tokenNo)
 
         self.setToken(tokenNo)
@@ -90,7 +108,7 @@ class RESTConnector():
         try:
             OIDs = data['objectIds']
         except:
-            print("data with objectIDs, " + str(r) + " - - " + str(r.text))
+            print("data with objectIDs, " + str(r) + " - - " + str(r.text) + "--DATA: " + str(data))
 
         print("ObjectIDs Pulled:" + str(len(OIDs)))
     
@@ -183,6 +201,7 @@ class RESTConnector():
         #initialize a master list, we will append each querie's features to this
         featureList = []
 
+
         #now we will iterate through all the chunks
         for chunk in chunks:
     
@@ -192,16 +211,29 @@ class RESTConnector():
     
             print("Chunk Start:" + str(chunkStart) + " - Chunk End:" + str(chunkEnd))
 
- 
-           
-            # data to be sent to api - constrained by start and end OID for chunk
-            PARAMS = {'f':'json', 
-                    'where':'OBJECTID>=' +str(chunkStart)+ " AND OBJECTID <=" + str(chunkEnd) + " AND " + queryText,
-                    'outSr' : '4326',
-                    'outFields':fields,
-                    'returnGeometry' : 'true',
-                    'token' : self.tokenNo
-                  } 
+            if queryText == "1=1":  
+                # data to be sent to api - constrained by start and end OID for chunk
+                PARAMS = {'f':'json', 
+                        'where':'OBJECTID>=' +str(chunkStart)+ " AND OBJECTID <=" + str(chunkEnd),
+                        'outSr' : '4326',
+                        'outFields':fields,
+                        'returnGeometry' : 'true',
+                        'returnExtentsOnly' : 'false',
+                        'geometryType' : 'esriGeometryEnvelope',
+                        'returnCountOnly' : 'false',
+                        'token' : self.tokenNo
+                      } 
+            else:
+                 ## data to be sent to api - constrained by start and end OID for chunk
+                PARAMS = {'f':'json', 
+                        'where':'OBJECTID>=' +str(chunkStart)+ " AND OBJECTID <=" + str(chunkEnd) + " AND " + queryText,
+                        'outSr' : '4326',
+                        'outFields':fields,
+                        'returnGeometry' : 'true',
+                        'token' : self.tokenNo
+                      } 
+
+           # print(PARAMS)
 
             #make the request
             r = requests.get(url = URL, headers = self.HEADERS, params = PARAMS )
@@ -379,7 +411,7 @@ class RESTConnector():
             geometryType = "Point"        
         
         except:
-            print("Error getting X - probably not a point")
+            print("No X coordinate - probably not a point, attempting line conversion...")
 
             #now lets check if a line
             try:              
@@ -387,7 +419,7 @@ class RESTConnector():
                 geometryType = "LineString" #paths has an extra list
 
             except:
-                print("Error getting paths - not a line either")
+                print("No line path - probably not a line either, attempting polygon conversion...")
 
                 #last shot - see if its a polygon
                 try:
@@ -395,7 +427,7 @@ class RESTConnector():
                     geometryType = "Polygon" #paths has an extra list
 
                 except:
-                    print("Error getting rings - not a line either")
+                    print("Error getting rings - not a polygon either")
 
         #set up the base structure for a geoJSON file
         geoJSONFile = {"type" : "FeatureCollection",

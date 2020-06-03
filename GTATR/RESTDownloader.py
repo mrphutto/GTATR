@@ -25,6 +25,8 @@ def downloadFeaturesAsGeoJSON(RConnect, baseURL, queryText, attributes, outName)
 
     #get a list of features back from REST response
     featuresWithGeometry = RConnect.getFeaturesWithGeometry(URL, chunks, attributes, queryText) 
+
+    print("Data Downloaded, saving..")
            
     testGeoJSON = RConnect.convertESRIGeometry(featuresWithGeometry)    
  
@@ -32,6 +34,7 @@ def downloadFeaturesAsGeoJSON(RConnect, baseURL, queryText, attributes, outName)
        dump(testGeoJSON, f)
 
     print("Complete with " + outName)
+
 
 def downloadFeaturesAsCSV(RESTConnect, baseURL, queryText, attributes, outName, isDataTable=False):
 
@@ -94,6 +97,32 @@ def downloadFeaturesAsCSV(RESTConnect, baseURL, queryText, attributes, outName, 
 
 if __name__ == "__main__":
 
+
+    
+    #RConnect = gt.RESTConnector('https://maps.foresitegroup.net/arcgis')
+
+    #my_Token = RConnect.getRESTToken("Utopia",'roksUtopia101!','https://maps.foresitegroup.net/arcgis/tokens/') 
+    #RConnect.setToken(my_Token)
+
+    #URL = 'https://maps.foresitegroup.net/arcgis/rest/services/Utopia/Utopia_Idaho_East/MapServer/7/query?'
+
+    #queryText = "SOURCE_CABLE_NAME = 'IDF013.2.1'"
+
+    # #First part is to get the list of object ids and break them into small pieces
+    #chunks = RConnect.getOIDsFromService(URL, queryText)   
+
+    #attributes = "*"
+
+    ##get a list of features back from REST response
+    #featuresWithGeometry = RConnect.getFeaturesWithGeometry(URL, chunks, attributes, queryText) 
+
+    #print(featuresWithGeometry)
+
+    
+  
+
+    #exit()
+
     mapList = []
 
        #attempt to open the .csv and read entries into list
@@ -131,38 +160,6 @@ if __name__ == "__main__":
                      '*',
                      map["fileName"])
 
-   # filesToProcess = []
 
-    #https://gisdata.seattle.gov/server/rest/services/SDOT/SDOT_ParkingData/MapServer/2/ #point
-
-    #https://gisrevprxy.seattle.gov/arcgis
-   # #https://gisrevprxy.seattle.gov/arcgis/rest/services/SDOT_EXT/Channelization_V2/MapServer/2/
-
-   # RConnect = gt.RESTConnector('https://gisdata.seattle.gov/server')
-   # RConnect.setToken("") #no token needed
-
-   # #downloadFeaturesAsCSV(RConnect, "https://gisdata.seattle.gov/server/rest/services/SDOT/SDOT_ParkingData/MapServer/2/", 
-   # #                 "1=1", 
-   # #                 '*',
-   # #                 'Channels2.csv')
-
-   # #  ## Anchors and Guys
-   # #downloadFeaturesAsJSON(RConnect, "https://gisdata.seattle.gov/server/rest/services/SDOT/SDOT_ParkingData/MapServer/2/", 
-   # #                 "1=1", 
-   # #                 '*',
-   # #                 'Channels2.geojson')
-
-   ## https://maps.foresitegroup.net/arcgis/rest/services/Knoxville/Knoxville/FeatureServer/228
-   ##https://maps.foresitegroup.net/arcgis/rest/services/Knoxville/Knoxville/FeatureServer/19
-   ##https://gisdata.seattle.gov/server/rest/services/SDOT/SDOT_ParkingData/MapServer/3 line
-    
-   # #RConnect = gt.RESTConnector('https://maps.foresitegroup.net/arcgis/')
-   # #tokenNo =  RConnect.getRESTToken("knoxville", "knoxROKS101!", "https://maps.foresitegroup.net/arcgis/tokens/")
-   ## RConnect.setToken("") #no token needed
-
-   # downloadFeaturesAsJSON(RConnect, "https://gisdata.seattle.gov/server/rest/services/SDOT/SDOT_ParkingData/MapServer/5", 
-   #                  "1=1", 
-   #                  '*',
-   #                  'parking3.geojson')
  
     print("Complete")
