@@ -1,13 +1,15 @@
 # GTATR V1.6 (GIS Tools and All The REST)
 Python library to query ESRI ArcGIS REST services and get results in JSON.
 
-# Notable Functions include:
+# Notable Functions
 
 + Bulk download to overcome the online server limits 
 + Portal/token authentication
 + Convert ESRI geometry to geoJSON format
 + Save attribute data to .csv
 + Save features with geometry as .geojson with all attribute data	
+
+# Description
 
 The main library gtatr.py just uses the requests library for simplicity, nothing else required. No ESRI or other third party libraries.
 
