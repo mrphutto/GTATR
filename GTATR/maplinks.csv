@@ -1,4 +1,3 @@
 OutName,MapServerLink
 Restrict_SSTap,http://gisrevprxy.seattle.gov/arcgis/rest/services/SPU_EXT/DSO_WATER_EXT/MapServer/5
-Restrict_NoNew,http://gisrevprxy.seattle.gov/arcgis/rest/services/SPU_EXT/DSO_WATER_EXT/MapServer/6
-WaterService,http://gisrevprxy.seattle.gov/arcgis/rest/services/SPU_EXT/DSO_WATER_EXT/MapServer/7
+States,http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Demographics/ESRI_Census_USA/MapServer/5

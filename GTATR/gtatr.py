@@ -1,5 +1,5 @@
 ########################################
-#GIS Tools and all the REST (GTATR) v1.4
+#GIS Tools and all the REST (GTATR) v1.5
 ########################################
 
 import requests #REST requests
@@ -10,9 +10,7 @@ import requests #REST requests
 #of Python dictionaries in most cases
 
 class RESTConnector():
-    """description of class"""
-    
-    
+       
     #basic construction, creates basic startup for the future REST connections
     def __init__(self, baseURL, tokenNo = ""): #base url is like https://maps.foresitegroup.net/arcgis
         
@@ -24,28 +22,29 @@ class RESTConnector():
         self.HEADERS = {'user-agent': 'my-app/0.0.1',
                 'Authorization': "Bearer " + self.tokenNo}
    
-    #small function to break a list into chunks
+    #small function to break a list into chunks, this is used for breaking larger requests up to fall under the cache limit
     def create_chunks(self, list_name, n):
         for i in range(0, len(list_name), n):
             yield list_name[i:i + n]
 
-    #give a user the ability to set their own token
+    #give a user the ability to set their own token if needed
     def setToken(self, tokenNo):
         self.tokenNo = tokenNo
 
         self.HEADERS = {'user-agent': 'my-app/0.0.1',
                 'Authorization': "Bearer " + tokenNo}
 
-    #pass in the credentials for authentication, and should get an ArcGIS token
+    #pass in the credentials for authentication, and should get an ArcGIS token back
     def getRESTToken(self, username, password, tokenURL):
 
         #First step is to authenticate with REST Service and get a token for future calls
+        #this has been modified to take a hosted AGOL service, or a private poral service
 
         #first check if token is a arcgis style or portal style
-        tokenStyle = "arcgis" #tokenURL = "https://maps.foresitegroup.net/arcgis/tokens/"
+        tokenStyle = "arcgis" #tokenURL = "https://mydomain.net/arcgis/tokens/"
 
         #this logic could be improved
-        if tokenURL == "https://maps.foresitegroup.net/portal/sharing/rest/generateToken":
+        if "/portal/sharing/rest/generateToken" in tokenURL:
             tokenStyle = "Portal"
 
         if tokenStyle == "Portal":
@@ -84,7 +83,6 @@ class RESTConnector():
 
     #returns a list of object IDs from a given Feature Layer URL, this will return results over the 5K limit
     def getOIDsFromService(self, URL, queryText):      
-      
 
         # data to be sent to api - "where 1=1" pulls all features, we want objectIDs only
         PARAMS = {'f':'pjson', 
@@ -110,21 +108,33 @@ class RESTConnector():
         except:
             print("data with objectIDs, " + str(r) + " - - " + str(r.text) + "--DATA: " + str(data))
 
-        print("ObjectIDs Pulled:" + str(len(OIDs)))
+        if OIDs is None:
+            print("No Object Ids Returned...")
+            chunks = None
+        else:
+            print("ObjectIDs Pulled:" + str(len(OIDs)))
     
-        #set the chunkSize, and break the list into chunks
-        chunkSize = 300 #lets try 300 at a time, maximum is 1000
-        chunks = list(self.create_chunks(OIDs, chunkSize))
+            #set the chunkSize, and break the list into chunks
+            chunkSize = 300 #lets try 300 at a time, maximum is 1000
+            chunks = list(self.create_chunks(OIDs, chunkSize))
 
-        print("Number of Chunks:" + str(len(chunks)))
+            print("Number of Chunks:" + str(len(chunks)))
 
         return chunks
 
-    #using a subset of the total Features (chunks) will return a list of features from given URL with requested attributes
-    def getFeatures(self,URL, chunks, fields, queryText):
+    
+    #this will return a list of features from given URL with requested attributes, it uses chunking to break the request into parts
+    def getFeatures(self,URL, fields, queryText):
 
+        #get a list of all the features by using the objectIDs which have no limit, then break into chunks
+        chunks = self.getOIDsFromService(URL,queryText)
+                                      
         #initialize a master list, we will append each querie's features to this
         featureList = []
+
+        if chunks is None:
+            print("No features found....")
+            return featureList
 
         #now we will iterate through all the chunks
         for chunk in chunks:
@@ -164,7 +174,8 @@ class RESTConnector():
         print(str(len(featureList)) + " features pulled from REST Service")
 
         return featureList
-
+    
+   
     #sometimes there are no ObjectIDs or geometry, its just table data
     def getTableData(self, URL, fields, queryText):
 
@@ -196,12 +207,14 @@ class RESTConnector():
         return featureList
 
     #returns the feature Geometry along with the raw data results given a Feature Layer URL
-    def getFeaturesWithGeometry(self,URL, chunks, fields, queryText):
+    def getFeaturesWithGeometry(self,URL, fields, queryText):
+
+         #get a list of all the features by using the objectIDs which have no limit, then break into chunks
+        chunks = self.getOIDsFromService(URL,queryText)
 
         #initialize a master list, we will append each querie's features to this
         featureList = []
-
-
+        
         #now we will iterate through all the chunks
         for chunk in chunks:
     
@@ -264,6 +277,9 @@ class RESTConnector():
 
         #initialize the starter file, just set to None for now
         geoJSON = None
+
+        #get a list of all the features by using the objectIDs which have no limit, then break into chunks
+        chunks = self.getOIDsFromService(URL,queryText)
 
         #now we will iterate through all the chunks
         for chunk in chunks:
@@ -474,3 +490,5 @@ class RESTConnector():
             geoJSONFile["features"].append(featureInGeoJSON)
 
         return geoJSONFile
+
+

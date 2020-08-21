@@ -4,64 +4,59 @@ import geojson
 from geojson import Point, Feature, FeatureCollection, dump
 import csv
 
+#This script is used in conjunction with the GTATR library for
+#downloading and converting online data from ArcGIS REST Services
+#It uses some libraries such as json, geojson, and csv for 
+#data formatting
 
+#this function will use GTATR to download features in bulk and save to a .geojson file
 def downloadFeaturesAsGeoJSON(RConnect, baseURL, queryText, attributes, outName):
-
-
+    
     #First step is to set the token so we have it for future calls
     #example "VukprqQVq_FG477WjsM4uS8txu6XdZGkpsDsDCoYns8."
-    #example baseURL "https://fhdwpicgva023.verizon.com/arcgis/rest/services/VerizonTelecom/MapServer/1/"
-    #example queryText "MARKETID = '69'"
-    #example attributes 'Internal_Permit_ID, OBJECTID, APPROVING_AUTHORITY_NAME, APPROVING_AUTHORITY_NUMBER'
-    #example outName 'arksplice.geojson'
-
+    #example baseURL "http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Demographics/ESRI_Census_USA/MapServer/5"
+    #example queryText "STATE_NAME = 'Alaska'"
+    #example attributes 'MALES, FEMALES, MED_AGE'
+    #example outName 'states.geojson'
+        
     #set the Feature Layer URL and headers including the token for authentication
 
-    #create the full URL, e.g."https://fhdwpicgva023.verizon.com/arcgis/rest/services/VerizonTelecom/MapServer/1/query?"
+    #create the full URL, e.g."http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Demographics/ESRI_Census_USA/MapServer/5"
     URL = baseURL + "/query?"    
-    #First part is to get the list of object ids and break them into small pieces
-    chunks = RConnect.getOIDsFromService(URL, queryText)   
-    print("Got Chunks")
-
+    
     #get a list of features back from REST response
-    featuresWithGeometry = RConnect.getFeaturesWithGeometry(URL, chunks, attributes, queryText) 
+    featuresWithGeometry = RConnect.getFeaturesWithGeometry(URL, attributes, queryText) 
 
-    print("Data Downloaded, saving..")
-           
-    testGeoJSON = RConnect.convertESRIGeometry(featuresWithGeometry)    
- 
+    #convert the ESRI style geometry to the geojson standard
+    print("Data Downloaded, saving..")           
+    GeoJSON = RConnect.convertESRIGeometry(featuresWithGeometry)    
+    
+    #save the result out to a .geojson file
     with open(outName, 'w') as f:
-       dump(testGeoJSON, f)
+       dump(GeoJSON, f)
 
     print("Complete with " + outName)
 
-
+#this function will use GTATR to download features in bulk and save to a .csv file (no geometry)
 def downloadFeaturesAsCSV(RESTConnect, baseURL, queryText, attributes, outName, isDataTable=False):
-
-
+    
     #First step is to set the token so we have it for future calls
     #example "VukprqQVq_FG477WjsM4uS8txu6XdZGkpsDsDCoYns8."
-    #example baseURL "https://fhdwpicgva023.verizon.com/arcgis/rest/services/VerizonTelecom/MapServer/1/"
-    #example queryText "MARKETID = '69'"
-    #example attributes 'Internal_Permit_ID, OBJECTID, APPROVING_AUTHORITY_NAME, APPROVING_AUTHORITY_NUMBER'
-    #example outName 'arksplice.csv'
+    #example baseURL "http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Demographics/ESRI_Census_USA/MapServer/5"
+    #example queryText "STATE_NAME = 'Alaska'"
+    #example attributes 'MALES, FEMALES, MED_AGE'
+    #example outName 'states.geojson'
 
     #set the Feature Layer URL and headers including the token for authentication
 
-
-    #create the full URL, e.g."https://fhdwpicgva023.verizon.com/arcgis/rest/services/VerizonTelecom/MapServer/1/query?"
+    #create the full URL, e.g."http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Demographics/ESRI_Census_USA/MapServer/"
     URL = baseURL + "/query?"    
-
     
     if isDataTable:
         features = RESTConnect.getTableData(URL, attributes, queryText) 
     else:
-        #First part is to get the list of object ids and break them into small pieces
-        chunks = RESTConnect.getOIDsFromService(URL, queryText)   
-        print("Got Chunks")
-
         #get a list of features back from REST response
-        features = RESTConnect.getFeaturesWithGeometry(URL, chunks,  attributes, queryText) 
+        features = RESTConnect.getFeaturesWithGeometry(URL, attributes, queryText) 
    # print(featuresAsGEOJSON) 
  
     csv_columns = []
@@ -73,7 +68,6 @@ def downloadFeaturesAsCSV(RESTConnect, baseURL, queryText, attributes, outName, 
         geo = f["geometry"]
 
         #try point
-
         try:
             geoX = geo["x"]
             geoY = geo["y"]
@@ -81,12 +75,14 @@ def downloadFeaturesAsCSV(RESTConnect, baseURL, queryText, attributes, outName, 
             f["ConvertedX"] = geoX
             f["ConvertedY"] = geoY
         except Exception as ex:
-            print("not a point")
-        
+            print("not a point, not mapping lat/longs")   
+            break
 
+    #map the feature attributes to a list of columns for the output csv
     for key in features[0].keys():
         csv_columns.append(key)
 
+    #write the table data to a .csv using DictWriter
     with open(outName, 'w', newline='') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
                 writer.writeheader()
@@ -95,38 +91,14 @@ def downloadFeaturesAsCSV(RESTConnect, baseURL, queryText, attributes, outName, 
 
     print("Complete with " + outName)
 
-if __name__ == "__main__":
-
-
-    
-    #RConnect = gt.RESTConnector('https://maps.foresitegroup.net/arcgis')
-
-    #my_Token = RConnect.getRESTToken("Utopia",'roksUtopia101!','https://maps.foresitegroup.net/arcgis/tokens/') 
-    #RConnect.setToken(my_Token)
-
-    #URL = 'https://maps.foresitegroup.net/arcgis/rest/services/Utopia/Utopia_Idaho_East/MapServer/7/query?'
-
-    #queryText = "SOURCE_CABLE_NAME = 'IDF013.2.1'"
-
-    # #First part is to get the list of object ids and break them into small pieces
-    #chunks = RConnect.getOIDsFromService(URL, queryText)   
-
-    #attributes = "*"
-
-    ##get a list of features back from REST response
-    #featuresWithGeometry = RConnect.getFeaturesWithGeometry(URL, chunks, attributes, queryText) 
-
-    #print(featuresWithGeometry)
-
-    
-  
-
-    #exit()
-
+#this function will use a .csv to batch download from multiple REST endpoints
+def batchDownloadFromCSV(inputcsv):
+        
+    #create a list to store the map links that are to be downloaded
     mapList = []
 
-       #attempt to open the .csv and read entries into list
-    with open('maplinks.csv', mode='r') as csv_file:
+    #attempt to open the .csv and read entries into list
+    with open(inputcsv, mode='r') as csv_file:
         csv_reader = csv.DictReader(csv_file)
         line_count = 0
     
@@ -138,28 +110,64 @@ if __name__ == "__main__":
                 print(f'Column names are {", ".join(row)}')
                 line_count += 1
 
-                #create a dictionary and append to the maplist
+            #create a dictionary and append to the maplist
             mapDict = { "fileName" : row["OutName"] + ".geojson",
                        "MapServerLink": row["MapServerLink"]}
 
+            #add this item to the queue
             mapList.append(mapDict)
         
             #move to next row and increase counter
             line_count += 1
 
+    #now run through all the maps to download
     for map in mapList:
         coreLink = ""
 
+        #parse the REST endpoint URL to get the URL required for access
         coreLink = map["MapServerLink"][:map["MapServerLink"].find("/rest/")]
        # print(coreLink)
 
+        #use the GTATR libary to download the data as geojson, getting all features and attributes
         RConnect = gt.RESTConnector(coreLink)
         RConnect.setToken("") #no token needed
         downloadFeaturesAsGeoJSON(RConnect, map["MapServerLink"], 
                      "1=1", 
                      '*',
                      map["fileName"])
-
-
  
-    print("Complete")
+    print("Complete with batch download...")
+
+#Main method to show some practical examples of using the library
+if __name__ == "__main__":
+
+    #The first example is a really simple example of downloading REST data to a .csv
+    print("Example of downloading REST data as a table into a .csv")
+
+    #Initalize the GTATR library by giving the base REST url
+    RConnect = gt.RESTConnector("http://sampleserver1.arcgisonline.com/ArcGIS")
+    
+    #First step is to set the token so we have it for future calls
+    #this example doesn't need a token - but options for getting a token to authenticate are below
+    #RConnect.setToken("VukprqQVq_FG477WjsM4uS8txu6XdZGkpsDsDCoYns8.")
+    #tokenNo = RConnect.getRESTToken("username", "password", "https://mydomain.net/portal/sharing/rest/generateToken")
+
+    #then set query parameters for example "STATE_NAME = 'Alaska'"
+    queryText = "1=1" #get all features
+
+    #set the attributes desired seperated by commas - as for example 'MALES, FEMALES, MED_AGE'
+    attributes = '*' #get all attributes
+
+    #We will call the function with the requested URL and give it our parameters and an output .csv name
+    downloadFeaturesAsCSV(RConnect, "http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Demographics/ESRI_Census_USA/MapServer/5", 
+                     queryText, 
+                     attributes, 
+                     'States.csv')
+
+    #Using most of the same parameters, we can also output with geometry as a .geojson
+    downloadFeaturesAsGeoJSON(RConnect, "http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Demographics/ESRI_Census_USA/MapServer/5", 
+                     queryText, 
+                     attributes, 
+                     'States.geojson')
+
+    batchDownloadFromCSV('maplinks.csv')
