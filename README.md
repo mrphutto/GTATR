@@ -2,8 +2,8 @@
 Library to query ArcGIS REST services and get results in Python
 
 Notable Functions include:
-!*Bulk download to overcome the feature caching limits
-*Portal/token authentication
+#Bulk download to overcome the feature caching limits
+##Portal/token authentication
 *Convert ESRI geometry to geoJSON format
 *Save attribute data to .csv
 *Save features with geometry as .geojson with all attribute data
