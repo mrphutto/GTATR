@@ -3,6 +3,7 @@ import json
 import geojson
 from geojson import Point, Feature, FeatureCollection, dump
 import csv
+import os
 
 #This script is used in conjunction with the GTATR library for
 #downloading and converting online data from ArcGIS REST Services
@@ -158,16 +159,25 @@ if __name__ == "__main__":
     #set the attributes desired seperated by commas - as for example 'MALES, FEMALES, MED_AGE'
     attributes = '*' #get all attributes
 
-    #We will call the function with the requested URL and give it our parameters and an output .csv name
-    downloadFeaturesAsCSV(RConnect, "http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Demographics/ESRI_Census_USA/MapServer/5", 
+    ##We will call the function with the requested URL and give it our parameters and an output .csv name
+    #downloadFeaturesAsCSV(RConnect, "http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Demographics/ESRI_Census_USA/MapServer/5", 
+    #                 queryText, 
+    #                 attributes, 
+    #                 'States.csv')
+
+    ##Using most of the same parameters, we can also output with geometry as a .geojson
+    #downloadFeaturesAsGeoJSON(RConnect, "http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Demographics/ESRI_Census_USA/MapServer/5", 
+    #                 queryText, 
+    #                 attributes, 
+    #                 'States.geojson')
+
+    dataDirectory = (os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) + r"/data"
+
+       #Using most of the same parameters, we can also output with geometry as a .geojson
+    downloadFeaturesAsGeoJSON(RConnect, " https://services2.arcgis.com/pWwHCwVEtR8QoS9x/ArcGIS/rest/services/Uniti_Fiber/FeatureServer/0", 
                      queryText, 
                      attributes, 
-                     'States.csv')
+                     dataDirectory + r"/uniti.geojson")
 
-    #Using most of the same parameters, we can also output with geometry as a .geojson
-    downloadFeaturesAsGeoJSON(RConnect, "http://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Demographics/ESRI_Census_USA/MapServer/5", 
-                     queryText, 
-                     attributes, 
-                     'States.geojson')
 
-    batchDownloadFromCSV('maplinks.csv')
+    batchDownloadFromCSV(dataDirectory + r"/maplinks.csv")
