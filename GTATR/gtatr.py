@@ -1,5 +1,5 @@
 ########################################
-#GIS Tools and all the REST (GTATR) v1.5
+#GIS Tools and all the REST (GTATR) v1.5.1 <test>
 ########################################
 
 import requests #REST requests
@@ -13,8 +13,7 @@ class RESTConnector():
        
     #basic construction, creates basic startup for the future REST connections
     def __init__(self, baseURL, tokenNo = ""): #base url is like https://maps.foresitegroup.net/arcgis
-        
-        
+                
         self.baseURL = baseURL
         self.tokenNo = tokenNo #optional, but if the user knows the token - can pass it in
         
