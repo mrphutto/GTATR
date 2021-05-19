@@ -1,5 +1,5 @@
 ########################################
-#GIS Tools and all the REST (GTATR) v1.6
+#GIS Tools and all the REST (GTATR) v1.7
 ########################################
 
 import requests #REST requests
