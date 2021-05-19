@@ -1,5 +1,5 @@
 ########################################
-#GIS Tools and all the REST (GTATR) v1.5.1 <test>
+#GIS Tools and all the REST (GTATR) v1.6
 ########################################
 
 import requests #REST requests
@@ -11,8 +11,8 @@ import requests #REST requests
 
 class RESTConnector():
        
-    #basic construction, creates basic startup for the future REST connections
     def __init__(self, baseURL, tokenNo = ""): #base url is like https://maps.foresitegroup.net/arcgis
+        """basic construction, creates basic startup for the future REST connections"""
                 
         self.baseURL = baseURL
         self.tokenNo = tokenNo #optional, but if the user knows the token - can pass it in
@@ -20,21 +20,32 @@ class RESTConnector():
         #set an initial placeholder for the headers - once we get a token this will be updated
         self.HEADERS = {'user-agent': 'my-app/0.0.1',
                 'Authorization': "Bearer " + self.tokenNo}
-   
-    #small function to break a list into chunks, this is used for breaking larger requests up to fall under the cache limit
+
+    def setCustomHeaderParameters(self, headerParameters):
+        """function will add additional request parameters to REST request headers if given in dictionary"""
+
+        #parameter should be a dictionary of additional headers
+        #for example
+        #{'Origin' : 'coolsite.com',
+        # 'Referer' : 'coolsite.com'}
+
+        self.customHEADERS = headerParameters
+
+    
     def create_chunks(self, list_name, n):
+        """small function to break a list into chunks, this is used for breaking larger requests up to fall under the cache limit"""
         for i in range(0, len(list_name), n):
             yield list_name[i:i + n]
-
-    #give a user the ability to set their own token if needed
+    
     def setToken(self, tokenNo):
+        """give a user the ability to set their own token if needed"""
         self.tokenNo = tokenNo
 
         self.HEADERS = {'user-agent': 'my-app/0.0.1',
                 'Authorization': "Bearer " + tokenNo}
 
-    #pass in the credentials for authentication, and should get an ArcGIS token back
     def getRESTToken(self, username, password, tokenURL):
+        """pass in the credentials for authentication, and should get an ArcGIS token back"""
 
         #First step is to authenticate with REST Service and get a token for future calls
         #this has been modified to take a hosted AGOL service, or a private poral service
@@ -80,9 +91,8 @@ class RESTConnector():
 
         return tokenNo
 
-    #returns a list of object IDs from a given Feature Layer URL, this will return results over the 5K limit
-    def getOIDsFromService(self, URL, queryText):      
-
+    def getOIDsFromService(self, URL, queryText, useCustomHeaders=False, additionalParameters=None):      
+        """returns a list of object IDs from a given Feature Layer URL, this will return results over the 5K limit"""
         # data to be sent to api - "where 1=1" pulls all features, we want objectIDs only
         PARAMS = {'f':'pjson', 
                 'where':queryText,
@@ -93,8 +103,16 @@ class RESTConnector():
                 'token' : self.tokenNo
               } 
 
+        #add additional key/values to the parameters if given by user
+        if additionalParameters:
+            PARAMS = PARAMS.update(additionalParameters)
+
+        HEADERS = self.HEADERS
+        if useCustomHeaders:
+           HEADERS = HEADERS.update(self.customHEADERS)
+
         #get the objects ids from the REST response
-        r = requests.get(url = URL, headers = self.HEADERS, params = PARAMS )
+        r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
         # print("respones : " + str(r.text))
         print("Reading OIDs...")
         try:
@@ -121,9 +139,8 @@ class RESTConnector():
 
         return chunks
 
-    
-    #this will return a list of features from given URL with requested attributes, it uses chunking to break the request into parts
-    def getFeatures(self,URL, fields, queryText):
+    def getFeatures(self,URL, fields, queryText, useCustomHeaders=False, additionalParameters=False):
+        """this will return a list of features from given URL with requested attributes, it uses chunking to break the request into parts"""
 
         #get a list of all the features by using the objectIDs which have no limit, then break into chunks
         chunks = self.getOIDsFromService(URL,queryText)
@@ -154,8 +171,16 @@ class RESTConnector():
                     'token' : self.tokenNo
                   } 
 
+            #add additional key/values to the parameters if given by user
+            if additionalParameters:
+                PARAMS = PARAMS.update(additionalParameters)
+
+            HEADERS = self.HEADERS
+            if useCustomHeaders:
+                HEADERS = HEADERS.update(self.customHEADERS)
+
             #make the request
-            r = requests.get(url = URL, headers = self.HEADERS, params = PARAMS )
+            r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
     
             #get the data back and convert the JSON response into a dictionary
             data = r.json() #make sure we do the parantheses or its acts a little weird
@@ -174,10 +199,8 @@ class RESTConnector():
 
         return featureList
     
-   
-    #sometimes there are no ObjectIDs or geometry, its just table data
-    def getTableData(self, URL, fields, queryText):
-
+    def getTableData(self, URL, fields, queryText, useCustomHeaders=False, additionalParameters=False):
+        """sometimes there are no ObjectIDs or geometry, its just table data"""
         #initialize a master list, we will append each querie's features to this
         featureList = []
         
@@ -189,8 +212,16 @@ class RESTConnector():
                 'token' : self.tokenNo
                 } 
 
+        #add additional key/values to the parameters if given by user
+        if additionalParameters:
+            PARAMS = PARAMS.update(additionalParameters)
+
+        HEADERS = self.HEADERS
+        if useCustomHeaders:
+           HEADERS = HEADERS.update(self.customHEADERS)
+
         #make the request
-        r = requests.get(url = URL, headers = self.HEADERS, params = PARAMS )
+        r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
     
         #get the data back and convert the JSON response into a dictionary
         data = r.json() #make sure we do the parantheses or its acts a little weird
@@ -205,8 +236,8 @@ class RESTConnector():
 
         return featureList
 
-    #returns the feature Geometry along with the raw data results given a Feature Layer URL
-    def getFeaturesWithGeometry(self,URL, fields, queryText):
+    def getFeaturesWithGeometry(self,URL, fields, queryText, useCustomHeaders=False, additionalParameters=None):
+        """returns the feature Geometry along with the raw data results given a Feature Layer URL"""
 
          #get a list of all the features by using the objectIDs which have no limit, then break into chunks
         chunks = self.getOIDsFromService(URL,queryText)
@@ -245,10 +276,16 @@ class RESTConnector():
                         'token' : self.tokenNo
                       } 
 
-           # print(PARAMS)
+            #add additional key/values to the parameters if given by user
+            if additionalParameters:
+                PARAMS = PARAMS.update(additionalParameters)
+
+            HEADERS = self.HEADERS
+            if useCustomHeaders:
+               HEADERS = HEADERS.update(self.customHEADERS)
 
             #make the request
-            r = requests.get(url = URL, headers = self.HEADERS, params = PARAMS )
+            r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
     
             try:
                 data = r.json() #make sure we do the parantheses or its acts a little weird
@@ -271,8 +308,8 @@ class RESTConnector():
 
         return featureList
 
-    #return a geoJSON results from Feature Layer URL with requested attributes
-    def getFeaturesAsGeoJSON(self,URL, chunks, fields, queryText):
+    def getFeaturesAsGeoJSON(self,URL, chunks, fields, queryText, useCustomHeaders=False,additionalParameters=None):
+        """return a geoJSON results from Feature Layer URL with requested attributes"""
 
         #initialize the starter file, just set to None for now
         geoJSON = None
@@ -299,8 +336,16 @@ class RESTConnector():
                     'token' : self.tokenNo
                   } 
 
+            #add additional key/values to the parameters if given by user
+            if additionalParameters:
+                PARAMS = PARAMS.update(additionalParameters)
+
+            HEADERS = self.HEADERS
+            if useCustomHeaders:
+                HEADERS = HEADERS.update(self.customHEADERS)     
+
             #make the request
-            r = requests.get(url = URL, headers = self.HEADERS, params = PARAMS )
+            r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
     
             #get the data back and convert the JSON response into a dictionary
             try:
@@ -338,8 +383,8 @@ class RESTConnector():
        # print("geojson pulled from REST Service")
         return geoJSON
 
-    #function for troubleshooting - given a URL and query parameters, can view the raw results
     def getTestQueryResponse(self, URL, queryText, fields):
+        """function for troubleshooting - given a URL and query parameters, can view the raw results"""
       
         # data to be sent to api - "where 1=1" pulls all features
         PARAMS = {'f':'pjson', 
@@ -359,13 +404,13 @@ class RESTConnector():
         except:
             print("JSON Response Error " + str(r) + " - - " + str(r.text))
 
-    #This will do a spatial query on the REST service using ESRI geometry and relationship (e.g. inside a polygon)
-    def getFeaturesFromServiceByGeometry(self,URL, queryText, geometryToUse, geometryType, spatialQueryType, fields):
+    def getFeaturesFromServiceByGeometry(self,URL, queryText, geometryToUse, geometryType, spatialQueryType, fields, useCustomHeaders=False, additionalParameters=None):
+        """This will do a spatial query on the REST service using ESRI geometry and relationship (e.g. inside a polygon)"""
        
         #initialize a master list, we will append each querie's features to this
         featureList = []
-
         #for geometry type, see http://resources.esri.com/help/9.3/arcgisengine/ArcObjects/esriGeometry/esriGeometryType.htm
+
         #geometry types can be esriGeometryPoint,esriGeometryLine,esriGeometryPolygon,esriGeometryPolyline
 
 
@@ -385,8 +430,16 @@ class RESTConnector():
                 'token' : self.tokenNo
               } 
     
+        #add additional key/values to the parameters if given by user
+        if additionalParameters:
+            PARAMS = PARAMS.update(additionalParameters)
+
+        HEADERS = self.HEADERS
+        if useCustomHeaders:
+           HEADERS = HEADERS.update(self.customHEADERS)
+
         #get the objects ids from the REST response
-        r = requests.get(url = URL, headers = self.HEADERS, params = PARAMS )
+        r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
         data = r.json() #make sure we do the parantheses or its acts a little weird   
         print(r.json())
         try:
@@ -404,9 +457,9 @@ class RESTConnector():
         print(str(len(featureList)) + " features pulled from REST Service")
 
         return featureList
-
-    #This will take a list of returned features with geometry and try to convert to a different format
+ 
     def convertESRIGeometry(self, featureList):
+        """This will take a list of returned features with geometry and try to convert to a different format"""
 
         #default the geometrytype to something that will catch attention if an error
         geometryType = "unk"
