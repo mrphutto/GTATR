@@ -30,6 +30,7 @@ class RESTConnector():
         # 'Referer' : 'coolsite.com'}
 
         self.customHEADERS = headerParameters
+        print("Custom Headers Added...")
 
     
     def create_chunks(self, list_name, n):
@@ -106,11 +107,13 @@ class RESTConnector():
         #add additional key/values to the parameters if given by user
         if additionalParameters:
             PARAMS = PARAMS.update(additionalParameters)
-
-        HEADERS = self.HEADERS
+       
         if useCustomHeaders:
-           HEADERS = HEADERS.update(self.customHEADERS)
-
+            HEADERS = self.HEADERS.copy()
+            HEADERS.update(self.customHEADERS)
+        else:
+            HEADERS = self.HEADERS
+           
         #get the objects ids from the REST response
         r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
         # print("respones : " + str(r.text))
@@ -123,7 +126,17 @@ class RESTConnector():
         try:
             OIDs = data['objectIds']
         except:
-            print("data with objectIDs, " + str(r) + " - - " + str(r.text) + "--DATA: " + str(data))
+            try:
+                if "Invalid Token" in data["error"]["message"]:
+                    print("Invalid Token")
+                    print("URL: " + str(URL))
+                    print("Token Sent: " + str(self.tokenNo))
+                    print("Headers Sent: " + str(HEADERS))
+                else:
+                    print("data with objectIDs, " + str(r) + " - - " + str(r.text) + "--DATA: " + str(data))
+            except:
+                print("data with objectIDs, " + str(r) + " - - " + str(r.text) + "--DATA: " + str(data))
+            OIDs = None            
 
         if OIDs is None:
             print("No Object Ids Returned...")
@@ -143,7 +156,7 @@ class RESTConnector():
         """this will return a list of features from given URL with requested attributes, it uses chunking to break the request into parts"""
 
         #get a list of all the features by using the objectIDs which have no limit, then break into chunks
-        chunks = self.getOIDsFromService(URL,queryText)
+        chunks = self.getOIDsFromService(URL,queryText, useCustomHeaders=useCustomHeaders)
                                       
         #initialize a master list, we will append each querie's features to this
         featureList = []
@@ -175,9 +188,11 @@ class RESTConnector():
             if additionalParameters:
                 PARAMS = PARAMS.update(additionalParameters)
 
-            HEADERS = self.HEADERS
             if useCustomHeaders:
-                HEADERS = HEADERS.update(self.customHEADERS)
+                HEADERS = self.HEADERS.copy()
+                HEADERS.update(self.customHEADERS)
+            else:
+                HEADERS = self.HEADERS
 
             #make the request
             r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
@@ -216,9 +231,11 @@ class RESTConnector():
         if additionalParameters:
             PARAMS = PARAMS.update(additionalParameters)
 
-        HEADERS = self.HEADERS
         if useCustomHeaders:
-           HEADERS = HEADERS.update(self.customHEADERS)
+            HEADERS = self.HEADERS.copy()
+            HEADERS.update(self.customHEADERS)
+        else:
+            HEADERS = self.HEADERS
 
         #make the request
         r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
@@ -240,7 +257,7 @@ class RESTConnector():
         """returns the feature Geometry along with the raw data results given a Feature Layer URL"""
 
          #get a list of all the features by using the objectIDs which have no limit, then break into chunks
-        chunks = self.getOIDsFromService(URL,queryText)
+        chunks = self.getOIDsFromService(URL,queryText, useCustomHeaders=useCustomHeaders)
 
         #initialize a master list, we will append each querie's features to this
         featureList = []
@@ -280,9 +297,11 @@ class RESTConnector():
             if additionalParameters:
                 PARAMS = PARAMS.update(additionalParameters)
 
-            HEADERS = self.HEADERS
             if useCustomHeaders:
-               HEADERS = HEADERS.update(self.customHEADERS)
+                HEADERS = self.HEADERS.copy()
+                HEADERS.update(self.customHEADERS)
+            else:
+                HEADERS = self.HEADERS
 
             #make the request
             r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
@@ -308,77 +327,83 @@ class RESTConnector():
 
         return featureList
 
-    def getFeaturesAsGeoJSON(self,URL, chunks, fields, queryText, useCustomHeaders=False,additionalParameters=None):
+    def getFeaturesAsGeoJSON(self,URL, fields, queryText, useCustomHeaders=False,additionalParameters=None):
         """return a geoJSON results from Feature Layer URL with requested attributes"""
 
         #initialize the starter file, just set to None for now
         geoJSON = None
+        print("Custom Headers: " + str(useCustomHeaders))
 
         #get a list of all the features by using the objectIDs which have no limit, then break into chunks
-        chunks = self.getOIDsFromService(URL,queryText)
+        chunks = self.getOIDsFromService(URL,queryText, useCustomHeaders=useCustomHeaders)
 
-        #now we will iterate through all the chunks
-        for chunk in chunks:
+        if chunks:
+
+            #now we will iterate through all the chunks
+            for chunk in chunks:
     
-            #get the OIDs for start and end of each chunk
-            chunkStart = chunk[0]
-            chunkEnd = chunk[len(chunk)-1]
+                #get the OIDs for start and end of each chunk
+                chunkStart = chunk[0]
+                chunkEnd = chunk[len(chunk)-1]
     
-            print("Chunk Start:" + str(chunkStart) + " - Chunk End:" + str(chunkEnd))
+                print("Chunk Start:" + str(chunkStart) + " - Chunk End:" + str(chunkEnd))
               
     
-            # data to be sent to api - constrained by start and end OID for chunk
-            PARAMS = {'f':'geojson', 
-                    'where':'OBJECTID>=' +str(chunkStart)+ " AND OBJECTID <=" + str(chunkEnd) + " AND " + queryText,
-                    'outSr' : '4326',
-                    'outFields':fields,
-                    'returnGeometry' : 'true',
-                    'token' : self.tokenNo
-                  } 
+                # data to be sent to api - constrained by start and end OID for chunk
+                PARAMS = {'f':'geojson', 
+                        'where':'OBJECTID>=' +str(chunkStart)+ " AND OBJECTID <=" + str(chunkEnd) + " AND " + queryText,
+                        'outSr' : '4326',
+                        'outFields':fields,
+                        'returnGeometry' : 'true',
+                        'token' : self.tokenNo
+                      } 
 
-            #add additional key/values to the parameters if given by user
-            if additionalParameters:
-                PARAMS = PARAMS.update(additionalParameters)
+                #add additional key/values to the parameters if given by user
+                if additionalParameters:
+                    PARAMS = PARAMS.update(additionalParameters)
 
-            HEADERS = self.HEADERS
-            if useCustomHeaders:
-                HEADERS = HEADERS.update(self.customHEADERS)     
+               
+                if useCustomHeaders:
+                    HEADERS = self.HEADERS.copy()
+                    HEADERS.update(self.customHEADERS)
+                else:
+                    HEADERS = self.HEADERS
 
-            #make the request
-            r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
+                #make the request
+                r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
     
-            #get the data back and convert the JSON response into a dictionary
-            try:
-                data = r.json() #make sure we do the parantheses or its acts a little weird
-            except Exception as ex:
-                print("Error Reading JSON Data -- " + str(ex) + "-- " +  str(r.status_code) + "--" + str(r.reason) + "--" + str(r.content) + "--" + r.text)
-                print("URL " + str(URL) + " PARAMs " + str(PARAMS))
-                data = None
-       
-            #check if this is the first chunk or subsequent part
-            if geoJSON is None:   
-                geoJSON = data #if this is the first chunk, initialize the geoJSON data
+                #get the data back and convert the JSON response into a dictionary
                 try:
-                    a = str(len(geoJSON["features"]))
+                    data = r.json() #make sure we do the parantheses or its acts a little weird
                 except Exception as ex:
-                    print("Error loading reading features -- " + str(ex) + "-- " +  str(r.status_code) + "--" + str(r.reason) + "--" + str(r.content) + "--" + r.text)
+                    print("Error Reading JSON Data -- " + str(ex) + "-- " +  str(r.status_code) + "--" + str(r.reason) + "--" + str(r.content) + "--" + r.text)
                     print("URL " + str(URL) + " PARAMs " + str(PARAMS))
+                    data = None
+       
+                #check if this is the first chunk or subsequent part
+                if geoJSON is None:   
+                    geoJSON = data #if this is the first chunk, initialize the geoJSON data
+                    try:
+                        a = str(len(geoJSON["features"]))
+                    except Exception as ex:
+                        print("Error loading reading features -- " + str(ex) + "-- " +  str(r.status_code) + "--" + str(r.reason) + "--" + str(r.content) + "--" + r.text)
+                        print("URL " + str(URL) + " PARAMs " + str(PARAMS))
 
-            else:
-                #if this is a subsequent chunk, we just add new features -not all the data
-                try:
-                    featuresToAdd = data["features"] #get the "Features" part of the JSON
-                    for feature in featuresToAdd:
-                        geoJSON["features"].append(feature) #loop through and append new features to the master JSON
-                except Exception as ex:
-                    print("Error loading reading features -- " + str(ex) + "-- " +  r.text + " -- " + str(r.status_code) + "--" + str(r.reason) + "--" + str(r.content))
+                else:
+                    #if this is a subsequent chunk, we just add new features -not all the data
+                    try:
+                        featuresToAdd = data["features"] #get the "Features" part of the JSON
+                        for feature in featuresToAdd:
+                            geoJSON["features"].append(feature) #loop through and append new features to the master JSON
+                    except Exception as ex:
+                        print("Error loading reading features -- " + str(ex) + "-- " +  r.text + " -- " + str(r.status_code) + "--" + str(r.reason) + "--" + str(r.content))
 
 
 
-        try:
-            print(str(len(geoJSON["features"])) + " geojson features pulled from REST Service")
-        except:
-            print("Bad or No geoJson returned")
+            try:
+                print(str(len(geoJSON["features"])) + " geojson features pulled from REST Service")
+            except:
+                print("Bad or No geoJson returned")
 
        # print("geojson pulled from REST Service")
         return geoJSON
@@ -434,9 +459,11 @@ class RESTConnector():
         if additionalParameters:
             PARAMS = PARAMS.update(additionalParameters)
 
-        HEADERS = self.HEADERS
         if useCustomHeaders:
-           HEADERS = HEADERS.update(self.customHEADERS)
+                HEADERS = self.HEADERS.copy()
+                HEADERS.update(self.customHEADERS)
+        else:
+            HEADERS = self.HEADERS
 
         #get the objects ids from the REST response
         r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
