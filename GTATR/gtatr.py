@@ -16,9 +16,11 @@ class RESTConnector():
                 
         self.baseURL = baseURL
         self.tokenNo = tokenNo #optional, but if the user knows the token - can pass it in
+
+        self.userAgent = 'my-app/0.0.1'
         
         #set an initial placeholder for the headers - once we get a token this will be updated
-        self.HEADERS = {'user-agent': 'my-app/0.0.1',
+        self.HEADERS = {'user-agent': self.userAgent,
                 'Authorization': "Bearer " + self.tokenNo}
 
     def setCustomHeaderParameters(self, headerParameters):
@@ -42,8 +44,11 @@ class RESTConnector():
         """give a user the ability to set their own token if needed"""
         self.tokenNo = tokenNo
 
-        self.HEADERS = {'user-agent': 'my-app/0.0.1',
-                'Authorization': "Bearer " + tokenNo}
+        #in case the headers were purposely wiped
+        if self.HEADERS != {}:
+            self.HEADERS = {'user-agent': self.userAgent,
+                'Authorization': "Bearer " + self.tokenNo}
+
 
     def getRESTToken(self, username, password, tokenURL):
         """pass in the credentials for authentication, and should get an ArcGIS token back"""
@@ -118,10 +123,23 @@ class RESTConnector():
         r = requests.get(url = URL, headers = HEADERS, params = PARAMS )
         # print("respones : " + str(r.text))
         print("Reading OIDs...")
+
+        #if (response.status != 200)
+        #print "Error -- Please check the URL and try again."
+        #
+
         try:
             data = r.json() #make sure we do the parantheses or its acts a little weird
         except:
             print("JSON Response Error " + str(r) + " - - " + str(r.text))
+
+            #def assertJsonSuccess(data):
+            #obj = json.loads(data)
+            #if 'status' in obj and obj['status'] == "error":
+            #    print "Error: JSON object returns an error. " + str(obj) 
+            #    return False
+            #else:
+            #    return True
 
         try:
             OIDs = data['objectIds']
